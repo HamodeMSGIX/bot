@@ -8,7 +8,7 @@ const app = express();
 app.get('/', (req, res) => res.send('Bot has arrived'));
 app.listen(8000, () => console.log('Server started'));
 
-let bot;
+let bot; // تم تعريف البوت هنا ليكون متاحًا عالميًا
 
 function getRandomUsername() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -20,6 +20,12 @@ function getRandomUsername() {
 }
 
 function createBot() {
+  // إذا كان هناك بوت موجود بالفعل، قم بقطعه أولاً
+  if (bot) {
+    console.log('[INFO] Quitting current bot before creating a new one.');
+    bot.quit();
+  }
+
   const username = getRandomUsername();
   console.log(`[INFO] Creating bot with username: ${username}`);
 
@@ -119,23 +125,34 @@ function createBot() {
 
   if (config.utils['auto-reconnect']) {
     bot.on('end', () => {
-      setTimeout(() => createBot(), config.utils['auto-recconect-delay']);
+      // إزالة هذا الجزء لأننا سنقوم بالتحكم في إعادة الاتصال من setInterval الرئيسي
+      // setTimeout(() => createBot(), config.utils['auto-recconect-delay']);
     });
   }
 
   bot.on('kicked', reason => {
     console.log(`\x1b[33m[AfkBot] Kicked from server:\n${reason}\x1b[0m`);
+    // إذا تم طرد البوت، قد ترغب في إعادة تشغيله على الفور أو بعد تأخير قصير
+    // بدلاً من الانتظار للدقيقة الكاملة. يمكنك إضافة setTimeout هنا.
+    if (config.utils['auto-reconnect']) {
+        setTimeout(() => createBot(), config.utils['auto-recconect-delay']);
+    }
   });
 
   bot.on('error', err => {
     console.log(`\x1b[31m[ERROR] ${err.message}\x1b[0m`);
+    // في حالة حدوث خطأ، قد تحتاج لإعادة تشغيل البوت
+    if (config.utils['auto-reconnect']) {
+        setTimeout(() => createBot(), config.utils['auto-recconect-delay']);
+    }
   });
 }
 
+// ابدأ البوت لأول مرة
 createBot();
 
-// إعادة التشغيل كل 3 ساعات = 3 * 60 * 60 * 1000 = 10800000 ملي ثانية
+// قم بإعادة تشغيل البوت كل دقيقة (60 ثانية * 1000 ملي ثانية = 60000 ملي ثانية)
 setInterval(() => {
   console.log('[INFO] Restarting bot with new username...');
-  if (bot) bot.quit();
-}, 10800000);
+  createBot(); // هذه الدالة الآن تتعامل مع قطع اتصال البوت القديم
+}, 60 * 1000); // 60000 ملي ثانية = 1 دقيقة
