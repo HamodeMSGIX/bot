@@ -1,14 +1,14 @@
 {
   "bot-account": {
-    "username": "boot", 
+    "username": "boot",
     "password": "",
     "type": "offline"
   },
 
   "server": {
-    "ip": "MSGIX.aternos.me", 
-    "port": 46091,   
-    "version": "1.12.2"   
+    "ip": "MSGIX.aternos.me",
+    "port": 46091,
+    "version": "1.12.2"
   },
 
   "position": {
@@ -30,12 +30,18 @@
     },
 
     "chat-messages": {
-      "enabled": true,
+      "enabled": false,
       "repeat": true,
       "repeat-delay": 60,
+      "messages": [
+        "MSG is the best mincraft player",
+        "hi",
+        "kareem is bot 🤣"
+      ]
+    },
 
     "chat-log": true,
     "auto-reconnect": true,
     "auto-recconect-delay": 5000
-  },
-},
+  }
+}
