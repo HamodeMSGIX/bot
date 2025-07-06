@@ -34,11 +34,8 @@
       "repeat": true,
       "repeat-delay": 60,
 
-      "messages": {
-    },
-
     "chat-log": true,
     "auto-reconnect": true,
     "auto-recconect-delay": 5000
-  }
-}
+  },
+},
