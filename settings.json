@@ -34,9 +34,7 @@
       "repeat": true,
       "repeat-delay": 60,
 
-      "messages": [
-     "
-      ]
+      "messages": {
     },
 
     "chat-log": true,
