@@ -1,13 +1,8 @@
 
 # 🤖 Aternos AFK Bot | بوت البقاء في سيرفر Aternos
 
-🚀 A powerful, customizable AFK bot for cracked Minecraft servers hosted on Aternos.  
+🚀 A powerful, customizable can change his name after 3H AFK bot for cracked Minecraft servers hosted on Aternos.  
 🚀 بوت قوي وقابل للتعديل للبقاء في سيرفرات ماينكرافت (بدون حساب مدفوع) على Aternos.
-
----
-
-📺 **Full Video Guide | شرح كامل بالفيديو**  
-▶️ [Watch on YouTube | شاهد على يوتيوب](https://youtu.be/dsU5xQIYtK8)
 
 ---
 
@@ -19,7 +14,7 @@
 - 🧭 Move to specific coordinates | الانتقال إلى إحداثيات محددة (اختياري)
 - ⚙️ Easy config via `settings.json` | إعداد سهل من خلال ملف `settings.json`
 - 🌐 Hosted 24/7 on Railway | يعمل 24/7 عبر Railway
-
+- 🔃 change the boot name | after 3H 
 ---
 
 ## ⚙️ Configuration | الإعداد
@@ -48,13 +43,11 @@ You can set:
 ---
 
 ## 👤 Developer | المطوّر
+Hamodemsg  
+MSG
 
-- **Name | الاسم**: Tyrox
-- **📺 YouTube**: [Tyrox0](https://www.youtube.com/@Tyrox0)
-- **💬 Discord**: Coming Soon
-
-🎮 Made with ❤️ by Tyrox for the Minecraft community.  
-🎮 تم تطويره بحب من Tyrox لمجتمع ماينكرافت.
+🎮 Made with ❤️ by MSG for the Minecraft community.  
+🎮 تم تطويره بحب من MSG لمجتمع ماينكرافت.
 
 ---
 
