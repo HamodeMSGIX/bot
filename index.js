@@ -117,14 +117,15 @@ function createBot() {
     console.log(`\x1b[33m[AfkBot] Bot died. Respawned at ${bot.entity.position}\x1b[0m`);
   });
 
-  if (config.utils['auto-reconnect']) {
-    bot.on('end', () => {
-      setTimeout(() => createBot(), config.utils['auto-recconect-delay']);
-    });
-  }
-
+  // إذا انطرد أو انقطع الاتصال يدخل باسم جديد
   bot.on('kicked', reason => {
     console.log(`\x1b[33m[AfkBot] Kicked from server:\n${reason}\x1b[0m`);
+    setTimeout(() => createBot(), 3000); // انتظر 3 ثواني قبل إعادة الاتصال
+  });
+
+  bot.on('end', () => {
+    console.log(`[INFO] Connection ended. Reconnecting...`);
+    setTimeout(() => createBot(), 3000);
   });
 
   bot.on('error', err => {
@@ -132,10 +133,11 @@ function createBot() {
   });
 }
 
+// أول تشغيل
 createBot();
 
-// إعادة التشغيل كل 3 ساعات = 3 * 60 * 60 * 1000 = 10800000 ملي ثانية
+// تغيير الاسم كل 3 ساعات مهما حصل
 setInterval(() => {
-  console.log('[INFO] Restarting bot with new username...');
-  if (bot) bot.quit();
-}, 10800000);
+  console.log('[INFO] Scheduled username change. Restarting bot...');
+  if (bot) bot.quit(); // يؤدي إلى تشغيل on('end') والدخول باسم جديد
+}, 3 * 60 * 60 * 1000); // 3 ساعات
