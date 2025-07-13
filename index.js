@@ -5,10 +5,11 @@ const config = require('./settings.json');
 const express = require('express');
 
 const app = express();
-app.get('/', (req, res) => res.send('Bot has arrived'));
+app.get('/', (req, res) => res.send('Bot is alive!'));
 app.listen(8000, () => console.log('Server started'));
 
 let bot;
+let msgTimer;
 
 function getRandomUsername() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -36,38 +37,8 @@ function createBot() {
 
   let pendingPromise = Promise.resolve();
 
-  function sendRegister(password) {
-    return new Promise((resolve, reject) => {
-      bot.chat(`/register ${password} ${password}`);
-      console.log(`[Auth] Sent /register command.`);
-      bot.once('chat', (username, message) => {
-        console.log(`[ChatLog] <${username}> ${message}`);
-        if (message.includes('successfully registered') || message.includes('already registered')) {
-          resolve();
-        } else {
-          reject(`Registration error: ${message}`);
-        }
-      });
-    });
-  }
-
-  function sendLogin(password) {
-    return new Promise((resolve, reject) => {
-      bot.chat(`/login ${password}`);
-      console.log(`[Auth] Sent /login command.`);
-      bot.once('chat', (username, message) => {
-        console.log(`[ChatLog] <${username}> ${message}`);
-        if (message.includes('successfully logged in')) {
-          resolve();
-        } else {
-          reject(`Login error: ${message}`);
-        }
-      });
-    });
-  }
-
   bot.once('spawn', () => {
-    console.log('\x1b[33m[AfkBot] Bot joined the server\x1b[0m');
+    console.log('[INFO] Bot joined the server');
 
     const mcData = require('minecraft-data')(bot.version);
     const defaultMove = new Movements(bot, mcData);
@@ -77,7 +48,7 @@ function createBot() {
       pendingPromise = pendingPromise
         .then(() => sendRegister(password))
         .then(() => sendLogin(password))
-        .catch(error => console.error(`\x1b[31m[ERROR] ${error}\x1b[0m`));
+        .catch(err => console.error(`[ERROR] ${err}`));
     }
 
     if (config.utils['chat-messages'].enabled) {
@@ -85,8 +56,8 @@ function createBot() {
       if (config.utils['chat-messages'].repeat) {
         const delay = config.utils['chat-messages']['repeat-delay'];
         let i = 0;
-        setInterval(() => {
-          bot.chat(messages[i]);
+        msgTimer = setInterval(() => {
+          if (bot) bot.chat(messages[i]);
           i = (i + 1) % messages.length;
         }, delay * 1000);
       } else {
@@ -94,9 +65,9 @@ function createBot() {
       }
     }
 
-    const pos = config.position;
     if (config.position.enabled) {
-      console.log(`\x1b[32m[Afk Bot] Moving to (${pos.x}, ${pos.y}, ${pos.z})\x1b[0m`);
+      const pos = config.position;
+      console.log(`[INFO] Moving to (${pos.x}, ${pos.y}, ${pos.z})`);
       bot.pathfinder.setMovements(defaultMove);
       bot.pathfinder.setGoal(new GoalBlock(pos.x, pos.y, pos.z));
     }
@@ -107,37 +78,76 @@ function createBot() {
         bot.setControlState('sneak', true);
       }
     }
+
+    // Example: physicsTick if you want it
+    bot.on('physicsTick', () => {
+      // Do something on every tick if needed
+    });
   });
 
   bot.on('goal_reached', () => {
-    console.log(`\x1b[32m[AfkBot] Bot arrived at target: ${bot.entity.position}\x1b[0m`);
+    console.log(`[INFO] Goal reached: ${bot.entity.position}`);
   });
 
   bot.on('death', () => {
-    console.log(`\x1b[33m[AfkBot] Bot died. Respawned at ${bot.entity.position}\x1b[0m`);
+    console.log('[INFO] Bot died');
   });
 
-  // إذا انطرد أو انقطع الاتصال يدخل باسم جديد
   bot.on('kicked', reason => {
-    console.log(`\x1b[33m[AfkBot] Kicked from server:\n${reason}\x1b[0m`);
-    setTimeout(() => createBot(), 3000); // انتظر 3 ثواني قبل إعادة الاتصال
+    console.log(`[INFO] Bot kicked: ${reason}`);
+    reconnectBot();
   });
 
   bot.on('end', () => {
-    console.log(`[INFO] Connection ended. Reconnecting...`);
-    setTimeout(() => createBot(), 3000);
+    console.log('[INFO] Connection ended.');
+    reconnectBot();
   });
 
   bot.on('error', err => {
-    console.log(`\x1b[31m[ERROR] ${err.message}\x1b[0m`);
+    console.log(`[ERROR] ${err.message}`);
   });
+
+  function sendRegister(password) {
+    return new Promise((resolve, reject) => {
+      bot.chat(`/register ${password} ${password}`);
+      console.log('[Auth] Sent /register');
+      bot.once('chat', (username, message) => {
+        if (message.includes('successfully registered') || message.includes('already registered')) {
+          resolve();
+        } else {
+          reject(`Register failed: ${message}`);
+        }
+      });
+    });
+  }
+
+  function sendLogin(password) {
+    return new Promise((resolve, reject) => {
+      bot.chat(`/login ${password}`);
+      console.log('[Auth] Sent /login');
+      bot.once('chat', (username, message) => {
+        if (message.includes('successfully logged in')) {
+          resolve();
+        } else {
+          reject(`Login failed: ${message}`);
+        }
+      });
+    });
+  }
 }
 
-// أول تشغيل
+function reconnectBot() {
+  if (msgTimer) clearInterval(msgTimer);
+  setTimeout(() => createBot(), 3000);
+}
+
 createBot();
 
-// تغيير الاسم كل 3 ساعات مهما حصل
+// تغيير الاسم كل 3 ساعات
 setInterval(() => {
-  console.log('[INFO] Scheduled username change. Restarting bot...');
-  if (bot) bot.quit(); // يؤدي إلى تشغيل on('end') والدخول باسم جديد
-}, 3 * 60 * 60 * 1000); // 3 ساعات
+  console.log('[INFO] Scheduled username change (3 hours)');
+  if (bot) {
+    if (msgTimer) clearInterval(msgTimer);
+    bot.quit();
+  }
+}, 3 * 60 * 60 * 1000);
