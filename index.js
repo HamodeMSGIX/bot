@@ -8,7 +8,7 @@ const app = express();
 app.get('/', (req, res) => res.send('Bot has arrived'));
 app.listen(8000, () => console.log('Server started'));
 
-let bot;
+let bot; // تم تعريف البوت هنا ليكون متاحًا عالميًا
 
 function getRandomUsername() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -20,6 +20,18 @@ function getRandomUsername() {
 }
 
 function createBot() {
+  // إذا كان هناك بوت موجود بالفعل، قم بقطعه أولاً
+  if (bot) {
+    console.log('[INFO] Quitting current bot before creating a new one.');
+    // مسح أي interval للدردشة موجود لتجنب تسرب الذاكرة
+    if (bot.chatInterval) {
+      clearInterval(bot.chatInterval);
+      bot.chatInterval = null; // إعادة تعيين الخاصية
+    }
+    bot.quit();
+    bot = null; // تعيين bot إلى null لضمان إنشاء instance جديد تمامًا
+  }
+
   const username = getRandomUsername();
   console.log(`[INFO] Creating bot with username: ${username}`);
 
@@ -48,6 +60,8 @@ function createBot() {
           reject(`Registration error: ${message}`);
         }
       });
+      // إضافة مهلة لتجنب التعليق إذا لم يستجب السيرفر
+      setTimeout(() => reject('Registration timed out.'), 10000); // 10 ثواني
     });
   }
 
@@ -63,6 +77,8 @@ function createBot() {
           reject(`Login error: ${message}`);
         }
       });
+      // إضافة مهلة لتجنب التعليق إذا لم يستجب السيرفر
+      setTimeout(() => reject('Login timed out.'), 10000); // 10 ثواني
     });
   }
 
@@ -85,7 +101,8 @@ function createBot() {
       if (config.utils['chat-messages'].repeat) {
         const delay = config.utils['chat-messages']['repeat-delay'];
         let i = 0;
-        setInterval(() => {
+        // حفظ الـ interval ID على كائن البوت لمسحه لاحقًا
+        bot.chatInterval = setInterval(() => {
           bot.chat(messages[i]);
           i = (i + 1) % messages.length;
         }, delay * 1000);
@@ -96,7 +113,7 @@ function createBot() {
 
     const pos = config.position;
     if (config.position.enabled) {
-      console.log(`\x1b[32m[Afk Bot] Moving to (${pos.x}, ${pos.y}, ${pos.z})\x1b[0m`);
+      console.log(`\x1b[32m[Afk Bot] Moving to (${pos.x}, ${pos.y}, ${pos.z})\\x1b[0m`);
       bot.pathfinder.setMovements(defaultMove);
       bot.pathfinder.setGoal(new GoalBlock(pos.x, pos.y, pos.z));
     }
@@ -109,6 +126,30 @@ function createBot() {
     }
   });
 
+  // حدث 'end' يتم تشغيله عند قطع الاتصال لأي سبب (طرد، خطأ، أو quit())
+  bot.on('end', (reason) => {
+    console.log(`\x1b[33m[AfkBot] Bot disconnected. Reason: ${reason}\x1b[0m`);
+    // مسح أي interval للدردشة موجود لتجنب تسرب الذاكرة
+    if (bot.chatInterval) {
+        clearInterval(bot.chatInterval);
+        bot.chatInterval = null;
+    }
+    if (config.utils['auto-reconnect']) {
+      console.log(`[INFO] Reconnecting in ${config.utils['auto-recconect-delay'] / 1000} seconds with new username...`);
+      setTimeout(() => createBot(), config.utils['auto-recconect-delay']);
+    }
+  });
+
+  bot.on('kicked', reason => {
+    // حدث 'end' سيتكفل بإعادة الاتصال، لذا لا داعي لتكرار المنطق هنا.
+    console.log(`\x1b[33m[AfkBot] Kicked from server:\n${reason}\x1b[0m`);
+  });
+
+  bot.on('error', err => {
+    // حدث 'end' سيتكفل بإعادة الاتصال، لذا لا داعي لتكرار المنطق هنا.
+    console.log(`\x1b[31m[ERROR] ${err.message}\x1b[0m`);
+  });
+
   bot.on('goal_reached', () => {
     console.log(`\x1b[32m[AfkBot] Bot arrived at target: ${bot.entity.position}\x1b[0m`);
   });
@@ -116,26 +157,15 @@ function createBot() {
   bot.on('death', () => {
     console.log(`\x1b[33m[AfkBot] Bot died. Respawned at ${bot.entity.position}\x1b[0m`);
   });
-
-  if (config.utils['auto-reconnect']) {
-    bot.on('end', () => {
-      setTimeout(() => createBot(), config.utils['auto-recconect-delay']);
-    });
-  }
-
-  bot.on('kicked', reason => {
-    console.log(`\x1b[33m[AfkBot] Kicked from server:\n${reason}\x1b[0m`);
-  });
-
-  bot.on('error', err => {
-    console.log(`\x1b[31m[ERROR] ${err.message}\x1b[0m`);
-  });
 }
 
+// ابدأ البوت لأول مرة
 createBot();
 
-// إعادة التشغيل كل 3 ساعات = 3 * 60 * 60 * 1000 = 10800000 ملي ثانية
+// جدولة إعادة تشغيل دورية (على سبيل المثال، كل دقيقة) لتغيير اسم المستخدم
+// إذا كنت تريد أن يعيد البوت الاتصال فقط عند الطرد/الخطأ، يمكنك إزالة هذا الـ setInterval.
+// وإلا، إذا أردت تغيير الاسم بشكل دوري بالإضافة إلى إعادة الاتصال عند المشاكل، فاتركه.
 setInterval(() => {
-  console.log('[INFO] Restarting bot with new username...');
-  if (bot) bot.quit();
-}, 10800000);
+  console.log('[INFO] Scheduled restart: changing bot username...');
+  createBot(); // هذه الدالة الآن تتعامل مع قطع اتصال البوت القديم وإنشاء بوت جديد.
+}, 60 * 1000); // تغيير الاسم كل 1 دقيقة (60,000 ملي ثانية)

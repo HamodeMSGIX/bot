@@ -1,14 +1,14 @@
 {
   "bot-account": {
-    "username": "boot", 
+    "username": "boot",
     "password": "",
     "type": "offline"
   },
 
   "server": {
-    "ip": "MSGIX.aternos.me", 
-    "port": 46091,   
-    "version": "1.21.5"   
+    "ip": "MSGIX.aternos.me",
+    "port": 46091,
+    "version": "1.21.5"   <-- تم التعديل هنا
   },
 
   "position": {
@@ -33,8 +33,8 @@
       "enabled": true,
       "repeat": true,
       "repeat-delay": 60,
-
       "messages": [
+
       ]
     },
 
