@@ -120,7 +120,7 @@ function createBot() {
 
     if (config.utils['anti-afk'].enabled) {
       // استخدام 'physicsTick' بدلاً من 'physicTick' لتجنب التحذير
-      bot.on('physicsTick', () => {
+      bot.on('physicsTick', () => { // <--- التعديل هنا
         bot.setControlState('jump', true);
         if (config.utils['anti-afk'].sneak) {
           bot.setControlState('sneak', true);
@@ -165,7 +165,7 @@ function createBot() {
 // ابدأ البوت لأول مرة
 createBot();
 
-// جدولة إعادة تشغيل دورية لتغيير اسم المستخدم
+// جدولة إعادة تشغيل دورية (كل 3 ساعات) لتغيير اسم المستخدم
 setInterval(() => {
   console.log('[INFO] Scheduled restart: changing bot username...');
   createBot(); // هذه الدالة الآن تتعامل مع قطع اتصال البوت القديم وإنشاء بوت جديد.
