@@ -119,10 +119,13 @@ function createBot() {
     }
 
     if (config.utils['anti-afk'].enabled) {
-      bot.setControlState('jump', true);
-      if (config.utils['anti-afk'].sneak) {
-        bot.setControlState('sneak', true);
-      }
+      // استخدام 'physicsTick' بدلاً من 'physicTick' لتجنب التحذير
+      bot.on('physicsTick', () => {
+        bot.setControlState('jump', true);
+        if (config.utils['anti-afk'].sneak) {
+          bot.setControlState('sneak', true);
+        }
+      });
     }
   });
 
@@ -162,10 +165,8 @@ function createBot() {
 // ابدأ البوت لأول مرة
 createBot();
 
-// جدولة إعادة تشغيل دورية (على سبيل المثال، كل دقيقة) لتغيير اسم المستخدم
-// إذا كنت تريد أن يعيد البوت الاتصال فقط عند الطرد/الخطأ، يمكنك إزالة هذا الـ setInterval.
-// وإلا، إذا أردت تغيير الاسم بشكل دوري بالإضافة إلى إعادة الاتصال عند المشاكل، فاتركه.
+// جدولة إعادة تشغيل دورية لتغيير اسم المستخدم
 setInterval(() => {
   console.log('[INFO] Scheduled restart: changing bot username...');
   createBot(); // هذه الدالة الآن تتعامل مع قطع اتصال البوت القديم وإنشاء بوت جديد.
-}, 60 * 1000); // تغيير الاسم كل 1 دقيقة (60,000 ملي ثانية)
+}, 10800000); // 3 ساعات = 3 * 60 * 60 * 1000 = 10800000 ملي ثانية
