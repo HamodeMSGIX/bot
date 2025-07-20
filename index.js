@@ -9,6 +9,7 @@ app.get('/', (req, res) => res.send('Bot has arrived'));
 app.listen(8000, () => console.log('Server started'));
 
 let bot; // تم تعريف البوت هنا ليكون متاحًا عالميًا
+let antiAfkInterval = null; // متغير لحفظ الـ Interval الخاص بالـ anti-afk
 
 function getRandomUsername() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -27,6 +28,11 @@ function createBot() {
     if (bot.chatInterval) {
       clearInterval(bot.chatInterval);
       bot.chatInterval = null; // إعادة تعيين الخاصية
+    }
+    // مسح الـ interval الخاص بالـ anti-afk إذا كان موجودًا
+    if (antiAfkInterval) {
+      clearInterval(antiAfkInterval);
+      antiAfkInterval = null;
     }
     bot.quit();
     bot = null; // تعيين bot إلى null لضمان إنشاء instance جديد تمامًا
@@ -98,34 +104,40 @@ function createBot() {
 
     if (config.utils['chat-messages'].enabled) {
       const messages = config.utils['chat-messages']['messages'];
-      if (config.utils['chat-messages'].repeat) {
-        const delay = config.utils['chat-messages']['repeat-delay'];
-        let i = 0;
-        // حفظ الـ interval ID على كائن البوت لمسحه لاحقًا
-        bot.chatInterval = setInterval(() => {
-          bot.chat(messages[i]);
-          i = (i + 1) % messages.length;
-        }, delay * 1000);
+      if (messages && messages.length > 0) {
+        if (config.utils['chat-messages'].repeat) {
+          const delay = config.utils['chat-messages']['repeat-delay'];
+          let i = 0;
+          bot.chatInterval = setInterval(() => {
+            bot.chat(messages[i]);
+            i = (i + 1) % messages.length;
+          }, delay * 1000);
+        } else {
+          messages.forEach(msg => bot.chat(msg));
+        }
       } else {
-        messages.forEach(msg => bot.chat(msg));
+        console.warn('[AfkBot] Chat messages are enabled but no messages are defined in settings.json. Please add messages to the "messages" array.');
       }
     }
 
     const pos = config.position;
     if (config.position.enabled) {
-      console.log(`\x1b[32m[Afk Bot] Moving to (${pos.x}, ${pos.y}, ${pos.z})\\x1b[0m`);
+      console.log(`\x1b[32m[Afk Bot] Moving to (${pos.x}, ${pos.y}, ${pos.z})\x1b[0m`);
       bot.pathfinder.setMovements(defaultMove);
       bot.pathfinder.setGoal(new GoalBlock(pos.x, pos.y, pos.z));
     }
 
     if (config.utils['anti-afk'].enabled) {
-      // استخدام 'physicsTick' بدلاً من 'physicTick' لتجنب التحذير
-      bot.on('physicsTick', () => { // <--- التعديل هنا
+      // استخدام setInterval لتنفيذ setControlState بشكل دوري
+      // هذا يحل مشكلة الـ TypeError عن طريق التأكد من أن البوت جاهز
+      antiAfkInterval = setInterval(() => {
         bot.setControlState('jump', true);
         if (config.utils['anti-afk'].sneak) {
           bot.setControlState('sneak', true);
         }
-      });
+        // يمكن إضافة تحكمات أخرى مثل تغيير اتجاه النظر قليلاً
+        // bot.look(Math.random() * Math.PI * 2, 0); 
+      }, 500); // كل 500 ملي ثانية (نصف ثانية)
     }
   });
 
@@ -137,6 +149,11 @@ function createBot() {
         clearInterval(bot.chatInterval);
         bot.chatInterval = null;
     }
+    // مسح الـ anti-afk interval عند قطع الاتصال
+    if (antiAfkInterval) {
+        clearInterval(antiAfkInterval);
+        antiAfkInterval = null;
+    }
     if (config.utils['auto-reconnect']) {
       console.log(`[INFO] Reconnecting in ${config.utils['auto-recconect-delay'] / 1000} seconds with new username...`);
       setTimeout(() => createBot(), config.utils['auto-recconect-delay']);
@@ -144,12 +161,10 @@ function createBot() {
   });
 
   bot.on('kicked', reason => {
-    // حدث 'end' سيتكفل بإعادة الاتصال، لذا لا داعي لتكرار المنطق هنا.
     console.log(`\x1b[33m[AfkBot] Kicked from server:\n${reason}\x1b[0m`);
   });
 
   bot.on('error', err => {
-    // حدث 'end' سيتكفل بإعادة الاتصال، لذا لا داعي لتكرار المنطق هنا.
     console.log(`\x1b[31m[ERROR] ${err.message}\x1b[0m`);
   });
 
