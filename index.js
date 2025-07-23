@@ -1,15 +1,16 @@
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 const { GoalBlock } = goals;
-const config = require('./settings.json');
+const config = require('./settings.json'); //
 const express = require('express');
 
 const app = express();
 app.get('/', (req, res) => res.send('Bot has arrived'));
 app.listen(8000, () => console.log('Server started'));
 
-let bot; // تم تعريف البوت هنا ليكون متاحًا عالميًا
-let antiAfkInterval = null; // متغير لحفظ الـ Interval الخاص بالـ anti-afk
+let bot; // Declare bot globally
+let chatInterval = null; // Declare chatInterval globally
+let antiAfkInterval = null; // Declare antiAfkInterval globally
 
 function getRandomUsername() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -21,21 +22,24 @@ function getRandomUsername() {
 }
 
 function createBot() {
-  // إذا كان هناك بوت موجود بالفعل، قم بقطعه أولاً
+  // Clear existing bot instance and its intervals before creating a new one
   if (bot) {
     console.log('[INFO] Quitting current bot before creating a new one.');
-    // مسح أي interval للدردشة موجود لتجنب تسرب الذاكرة
-    if (bot.chatInterval) {
-      clearInterval(bot.chatInterval);
-      bot.chatInterval = null; // إعادة تعيين الخاصية
+    // Clear chat interval if it exists
+    if (chatInterval) {
+      clearInterval(chatInterval);
+      chatInterval = null;
     }
-    // مسح الـ interval الخاص بالـ anti-afk إذا كان موجودًا
+    // Clear anti-afk interval if it exists
     if (antiAfkInterval) {
       clearInterval(antiAfkInterval);
       antiAfkInterval = null;
     }
-    bot.quit();
-    bot = null; // تعيين bot إلى null لضمان إنشاء instance جديد تمامًا
+    // Only call quit if bot is an object and has the quit function
+    if (typeof bot.quit === 'function') { // Ensure bot.quit exists before calling
+      bot.quit();
+    }
+    bot = null; // Set bot to null to ensure a fresh instance is created
   }
 
   const username = getRandomUsername();
@@ -43,11 +47,11 @@ function createBot() {
 
   bot = mineflayer.createBot({
     username: username,
-    password: config['bot-account']['password'],
-    auth: config['bot-account']['type'],
-    host: config.server.ip,
-    port: config.server.port,
-    version: config.server.version,
+    password: config['bot-account']['password'], //
+    auth: config['bot-account']['type'], //
+    host: config.server.ip, //
+    port: config.server.port, //
+    version: config.server.version, //
   });
 
   bot.loadPlugin(pathfinder);
@@ -66,8 +70,8 @@ function createBot() {
           reject(`Registration error: ${message}`);
         }
       });
-      // إضافة مهلة لتجنب التعليق إذا لم يستجب السيرفر
-      setTimeout(() => reject('Registration timed out.'), 10000); // 10 ثواني
+      // Add a timeout for registration to prevent hanging
+      setTimeout(() => reject('Registration timed out.'), 10000); // 10 seconds
     });
   }
 
@@ -83,8 +87,8 @@ function createBot() {
           reject(`Login error: ${message}`);
         }
       });
-      // إضافة مهلة لتجنب التعليق إذا لم يستجب السيرفر
-      setTimeout(() => reject('Login timed out.'), 10000); // 10 ثواني
+      // Add a timeout for login to prevent hanging
+      setTimeout(() => reject('Login timed out.'), 10000); // 10 seconds
     });
   }
 
@@ -94,21 +98,23 @@ function createBot() {
     const mcData = require('minecraft-data')(bot.version);
     const defaultMove = new Movements(bot, mcData);
 
-    if (config.utils['auto-auth'].enabled) {
-      const password = config.utils['auto-auth'].password;
+    if (config.utils['auto-auth'].enabled) { //
+      const password = config.utils['auto-auth'].password; //
       pendingPromise = pendingPromise
         .then(() => sendRegister(password))
         .then(() => sendLogin(password))
         .catch(error => console.error(`\x1b[31m[ERROR] ${error}\x1b[0m`));
     }
 
-    if (config.utils['chat-messages'].enabled) {
-      const messages = config.utils['chat-messages']['messages'];
+    if (config.utils['chat-messages'].enabled) { //
+      const messages = config.utils['chat-messages']['messages']; //
+      // Ensure there are messages to send to prevent "Chat message type must be a string or number: undefined" error
       if (messages && messages.length > 0) {
-        if (config.utils['chat-messages'].repeat) {
-          const delay = config.utils['chat-messages']['repeat-delay'];
+        if (config.utils['chat-messages'].repeat) { //
+          const delay = config.utils['chat-messages']['repeat-delay']; //
           let i = 0;
-          bot.chatInterval = setInterval(() => {
+          // Assign the interval ID to the global chatInterval variable
+          chatInterval = setInterval(() => {
             bot.chat(messages[i]);
             i = (i + 1) % messages.length;
           }, delay * 1000);
@@ -120,43 +126,42 @@ function createBot() {
       }
     }
 
-    const pos = config.position;
-    if (config.position.enabled) {
-      console.log(`\x1b[32m[Afk Bot] Moving to (${pos.x}, ${pos.y}, ${pos.z})\x1b[0m`);
+    const pos = config.position; //
+    if (config.position.enabled) { //
+      console.log(`\x1b[32m[Afk Bot] Moving to (${pos.x}, ${pos.y}, ${pos.z})\x1b[0m`); //
       bot.pathfinder.setMovements(defaultMove);
-      bot.pathfinder.setGoal(new GoalBlock(pos.x, pos.y, pos.z));
+      bot.pathfinder.setGoal(new GoalBlock(pos.x, pos.y, pos.z)); //
     }
 
-    if (config.utils['anti-afk'].enabled) {
-      // استخدام setInterval لتنفيذ setControlState بشكل دوري
-      // هذا يحل مشكلة الـ TypeError عن طريق التأكد من أن البوت جاهز
+    if (config.utils['anti-afk'].enabled) { //
+      // Use setInterval for anti-afk to ensure bot methods are available after spawn
       antiAfkInterval = setInterval(() => {
         bot.setControlState('jump', true);
-        if (config.utils['anti-afk'].sneak) {
+        if (config.utils['anti-afk'].sneak) { //
           bot.setControlState('sneak', true);
         }
-        // يمكن إضافة تحكمات أخرى مثل تغيير اتجاه النظر قليلاً
-        // bot.look(Math.random() * Math.PI * 2, 0); 
-      }, 500); // كل 500 ملي ثانية (نصف ثانية)
+        // Optional: Add slight random look changes for more realistic AFK behavior
+        // bot.look(Math.random() * Math.PI * 2, 0);
+      }, 500); // Every 500 milliseconds (half a second)
     }
   });
 
-  // حدث 'end' يتم تشغيله عند قطع الاتصال لأي سبب (طرد، خطأ، أو quit())
+  // 'end' event is triggered when connection is lost for any reason (kick, error, or quit())
   bot.on('end', (reason) => {
-    console.log(`\x1b[33m[AfkBot] Bot disconnected. Reason: ${reason}\x1b[0m`);
-    // مسح أي interval للدردشة موجود لتجنب تسرب الذاكرة
-    if (bot.chatInterval) {
-        clearInterval(bot.chatInterval);
-        bot.chatInterval = null;
+    console.log(`\x1b[33m[AfkBot] Bot disconnected. Reason: ${reason}\x1b[0m`); //
+    // Clear chat interval to prevent memory leaks
+    if (chatInterval) {
+        clearInterval(chatInterval);
+        chatInterval = null;
     }
-    // مسح الـ anti-afk interval عند قطع الاتصال
+    // Clear anti-afk interval upon disconnection
     if (antiAfkInterval) {
         clearInterval(antiAfkInterval);
         antiAfkInterval = null;
     }
-    if (config.utils['auto-reconnect']) {
-      console.log(`[INFO] Reconnecting in ${config.utils['auto-recconect-delay'] / 1000} seconds with new username...`);
-      setTimeout(() => createBot(), config.utils['auto-recconect-delay']);
+    if (config.utils['auto-reconnect']) { //
+      console.log(`[INFO] Reconnecting in ${config.utils['auto-recconect-delay'] / 1000} seconds with new username...`); //
+      setTimeout(() => createBot(), config.utils['auto-recconect-delay']); //
     }
   });
 
@@ -177,11 +182,11 @@ function createBot() {
   });
 }
 
-// ابدأ البوت لأول مرة
+// Start the bot for the first time
 createBot();
 
-// جدولة إعادة تشغيل دورية (كل 3 ساعات) لتغيير اسم المستخدم
+// Schedule a periodic restart (every 3 hours) to change username
 setInterval(() => {
   console.log('[INFO] Scheduled restart: changing bot username...');
-  createBot(); // هذه الدالة الآن تتعامل مع قطع اتصال البوت القديم وإنشاء بوت جديد.
-}, 10800000); // 3 ساعات = 3 * 60 * 60 * 1000 = 10800000 ملي ثانية
+  createBot(); // This function now handles quitting the old bot and creating a new one.
+}, 10800000); // 3 hours = 3 * 60 * 60 * 1000 = 10800000 milliseconds
